@@ -1,0 +1,34 @@
+//AbApplet
+//Applet containing ABNIAC frame
+
+import java.awt.*;
+import java.applet.*;
+import AbFrame;
+
+public class AbApplet extends Applet{
+
+  AbFrame af = new AbFrame();
+  Button btnStart = new Button ("Start Abniac!");
+  Button btnQuit = new Button ("Close down Abniac!");
+
+  public void init(){
+    this.setBackground(Color.yellow);
+    add(btnStart);
+    add(btnQuit);
+  } // end init
+  
+  public boolean action(Event e, Object o){
+    if (e.target==btnStart){
+      af.resize(400,300);
+      af.show();
+      return true;      
+    } else if (e.target == btnQuit){
+      af.dispose();
+      af.hide();
+      return true;
+    } else { 
+      return false;
+    } // end if
+  } // end action
+  
+} // end class def

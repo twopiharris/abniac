@@ -1,0 +1,1110 @@
+//AbFrame
+//All the real work happens here
+
+import java.awt.*;
+import AbMail;
+//import java.net.*;
+//import java.io.*;
+
+public class AbFrame extends Frame implements Runnable{
+
+  //constants
+  public static final int STORE = 1;
+  public static final int ADD = 2;
+  public static final int COMPARE = 3;
+  public static final int JUMP = 4;
+  public static final int OUTPUT = 5;
+  public static final int ASCOUT = 6;
+  public static final int HALT = 7;
+  public static final int CHANGE = 0;  
+
+  //class-wide variables
+  int[] memory= new int[100];                 //the memory model
+  int command = 0;                            //the current command
+  int counter = 0;                            //the program counter
+  Thread interpreter = new Thread(this);
+  boolean running = false;
+  int runSpeed = 250;
+  Font myFont = new Font("TimesRoman",Font.PLAIN,20);
+
+  //output areas
+  TextArea txtOutput = new TextArea("Output: \n --------\n", 20, 8);
+  List lstOutput = new List(10, false);
+  
+  //control panel
+  Panel pnlControls = new Panel();
+  Button btnStore = new Button   ("1.  Store        ");
+  Button btnAdd = new Button     ("2.  Add          ");
+  Button btnCompare = new Button ("3.  Compare      ");
+  Button btnJump = new Button    ("4.  Jump         ");
+  Button btnOutput = new Button  ("5.  Output       ");
+  Button btnAscii = new Button   ("6.  ASCII Output ");
+  Button btnHalt = new Button    ("7.  Halt         ");
+  Button btnRun = new Button     ("Run");
+  
+  
+  //input panel
+  Panel pnlInput = new Panel();
+  Label lblCommand = new Label();
+  TextField txtCommand = new TextField();
+  Label lblArg1 = new Label();
+  TextField txtArg1 = new TextField();  
+  Label lblArg2 = new Label();
+  TextField txtArg2 = new TextField();  
+  Label lblArg3 = new Label();
+  TextField txtArg3 = new TextField();  
+  Button btnOK = new Button("OK");
+  Button btnQuit = new Button("Quit");
+  
+  
+  //menu placeholders
+  MenuBar myMenuBar = new MenuBar();
+  Menu mnuFile = new Menu("File");
+  Menu mnuSamples = new Menu("Samples");
+  Menu mnuSpeed = new Menu("Speed");
+  Menu mnuHelp = new Menu("Help");
+  
+  //File menu items
+  MenuItem mnuNew = new MenuItem("New");
+  MenuItem mnuSave = new MenuItem("Save");
+  MenuItem mnuOpen = new MenuItem("Open");
+  MenuItem mnuPrint = new MenuItem("Print");
+  MenuItem mnuEmail = new MenuItem("Email");
+  MenuItem mnuExit = new MenuItem("Exit");
+
+  //Sample menu items
+  MenuItem mnuHi = new MenuItem("Hi");
+  MenuItem mnuCounter = new MenuItem("Counter");
+  MenuItem mnuEndless = new MenuItem("Endless");
+
+  //Speed menu items
+  MenuItem mnuVeryFast = new MenuItem("Very Fast");
+  MenuItem mnuFast = new MenuItem("Fast");
+  MenuItem mnuMedium = new MenuItem("Medium");
+  MenuItem mnuSlow = new MenuItem("Slow");
+  MenuItem mnuVerySlow = new MenuItem("Very Slow");
+
+  //Help menu items
+  MenuItem mnuAbout = new MenuItem("About");
+  MenuItem mnuASCII = new MenuItem("ASCII chart");
+  MenuItem mnuOpCodes = new MenuItem("OpCodes");
+  MenuItem mnuMenus = new MenuItem("Menu items");
+  
+  
+  public static void main(String args[]){
+    AbFrame af = new AbFrame();
+    af.resize(500,300);
+    af.show();
+  } // end main
+   
+  public AbFrame(){
+    super("Absolute Beginner's Numerical Integrator And Calculator");
+  
+    //set up memory
+    for (int i=0; i <= 99; i++){
+      memory[i] = 0;
+    } // end for loop
+    
+    //set up main layout
+    setFont(myFont);
+    
+    setLayout(new BorderLayout());
+    add("Center", lstOutput);
+    add("South", pnlInput);
+    add("West", pnlControls);
+    add("East", txtOutput);
+
+    //color and details
+    txtOutput.setEditable(false);
+    txtOutput.setBackground(Color.white);
+    txtOutput.setForeground(Color.black);
+    lstOutput.setFont(new Font("Courier", Font.PLAIN, 18));
+    lstOutput.setBackground(Color.blue);
+    lstOutput.setForeground(Color.yellow);
+    this.setBackground(Color.yellow);
+    
+    //set up control panel
+    pnlControls.setLayout(new GridLayout(0,1));
+    pnlControls.add(btnStore);
+    pnlControls.add(btnAdd);
+    pnlControls.add(btnCompare);
+    pnlControls.add(btnJump);
+    pnlControls.add(btnOutput);
+    pnlControls.add(btnAscii);
+    pnlControls.add(btnHalt);
+    pnlControls.add(btnRun);
+  
+    //set up input panel
+    pnlInput.setLayout(new GridLayout(0,2));
+    pnlInput.add(lblCommand);
+    pnlInput.add(txtCommand);
+    pnlInput.add(lblArg1);
+    pnlInput.add(txtArg1);    
+    pnlInput.add(lblArg2);
+    pnlInput.add(txtArg2);
+    pnlInput.add(lblArg3);
+    pnlInput.add(txtArg3);
+    pnlInput.add(btnOK);
+    pnlInput.add(btnQuit);    
+    txtCommand.disable();
+
+    //set up menus
+    this.setMenuBar(myMenuBar);
+    myMenuBar.add(mnuFile);
+    mnuFile.add(mnuNew);
+    mnuFile.add(mnuEmail);
+    //mnuFile.add(mnuSave);
+    //mnuFile.add(mnuOpen);
+    //mnuFile.add(mnuPrint);
+    mnuFile.addSeparator();
+    mnuFile.add(mnuExit);
+    
+    myMenuBar.add(mnuSamples);
+    mnuSamples.add(mnuHi);
+    mnuSamples.add(mnuCounter);
+    mnuSamples.add(mnuEndless);
+
+    myMenuBar.add(mnuSpeed);
+    mnuSpeed.add(mnuVeryFast);
+    mnuSpeed.add(mnuFast);
+    mnuSpeed.add(mnuMedium);
+    mnuSpeed.add(mnuSlow);
+    mnuSpeed.add(mnuVerySlow);
+
+    myMenuBar.add(mnuHelp);
+    mnuHelp.add(mnuAbout);
+    mnuHelp.add(mnuASCII);
+    mnuHelp.add(mnuOpCodes);
+    mnuHelp.add(mnuMenus);
+
+
+    //update output
+    for (int i = 0; i <= 99; i++){
+      String temp = new String();
+      temp = String.valueOf(i);
+      temp += "   | ";
+      //temp += memory[i].showParsed();
+      lstOutput.addItem(temp);
+    } // end for loop
+
+    showMem();
+    lstOutput.select(0);
+  
+  } // end constructor
+  
+  public boolean handleEvent(Event e){
+    switch (e.id){
+      case Event.ACTION_EVENT:
+        if (e.target == btnStore){
+          command = STORE;
+          setupInput(command);
+          return true;
+
+        } else if (e.target == btnAdd){
+          command = ADD;
+          setupInput(command);
+          return true;
+
+        } else if (e.target == btnCompare){
+          command = COMPARE;
+          setupInput(command);
+          return true;
+
+        } else if (e.target == btnJump){
+          command = JUMP;
+          setupInput(command);
+          return true;
+
+        } else if (e.target == btnOutput){
+          command = OUTPUT;
+          setupInput(command);
+          return true;
+
+        } else if (e.target == btnAscii){
+          command = ASCOUT;
+          setupInput(command);
+          return true;
+
+        } else if (e.target == btnHalt){
+          command = HALT;
+          setupInput(command);
+          return true;
+
+        } else if (e.target == btnOK){
+          update(command);
+          return true;
+          
+        } else if (e.target == btnRun){
+          if (!running){
+            //start up the interpreter as a thread
+            running = true;
+            interpreter = new Thread(this);
+            interpreter.start();
+
+          } else {
+            
+            running = false;
+            btnRun.setLabel("Run");
+            counter = 0;
+            lstOutput.select(counter);
+            interpreter.stop();
+            interpreter = null;
+            
+          } // end if
+          return true;
+          
+        } else if (e.target == btnQuit){
+          this.hide();      
+          this.dispose();
+          //taken out... seems to cause applet problems...
+          //System.exit(0);
+          return true;
+
+        } else if (e.target == lstOutput){
+          //allow the user to change the value of this cell
+          command = CHANGE;
+          setupInput(command);
+          return true;
+
+        } else if (e.target == mnuNew){
+          renew();
+          return true;
+          
+        } else if (e.target == mnuEmail){
+          email();
+	  return true;
+
+        } else if (e.target == mnuHi){
+          hiThere();
+          return true;
+          
+        } else if (e.target == mnuCounter){
+          counter();
+          return true;
+          
+        } else if (e.target == mnuEndless){
+          endless();
+          return true;
+          
+        } else if (e.target == mnuVeryFast){
+          runSpeed = 0;
+          return true;
+
+        } else if (e.target == mnuFast){
+          runSpeed = 100;
+          return true;
+
+        } else if (e.target == mnuMedium){
+          runSpeed = 250;
+          return true;
+
+        } else if (e.target == mnuSlow){
+          runSpeed = 500;
+          return true;
+
+        } else if (e.target == mnuVerySlow){
+          runSpeed = 1000;
+          return true;
+
+        } else if (e.target == mnuASCII){
+          AbAscii as = new AbAscii();
+          as.resize(300,300);
+          as.show();
+
+        } else {
+          return false;    
+        } // end if
+  
+    case Event.LIST_SELECT:
+      //set the counter to this cell
+      counter = lstOutput.getSelectedIndex();
+      return true;
+    
+    case Event.WINDOW_DESTROY:
+      this.hide();      
+      this.dispose();
+      //System.exit(0);
+      return true;
+
+    default:
+      return false;
+    
+  } // end switch
+
+  } // end handleEvent
+
+  public void setupInput(int command){
+
+    switch (command){
+
+    case CHANGE:
+
+      //set up starting values in output panel
+      lblCommand.setText("change");
+      lblArg1.setText("... this cell's value to");
+      lblArg2.setText("");
+      lblArg3.setText("");
+      txtCommand.setText("");
+      txtArg1.setText("");
+      txtArg2.setText("");
+      txtArg3.setText("");
+
+      //enable appropriate text fields only
+      txtArg1.enable();
+      txtArg2.disable();
+      txtArg3.disable();
+      break;
+
+
+    case STORE:
+
+      //set up starting values in output panel
+      lblCommand.setText("store");
+      lblArg1.setText("...the value");
+      lblArg2.setText("...to the address");
+      lblArg3.setText("");
+      txtCommand.setText("1");
+      txtArg1.setText("");
+      txtArg2.setText("");
+      txtArg3.setText("");
+
+      //enable appropriate text fields only
+      txtArg1.enable();
+      txtArg2.enable();
+      txtArg3.disable();
+      break;
+      
+    case ADD:
+
+      //set up starting values in output panel
+      lblCommand.setText("add");
+      lblArg1.setText("...the value in cell");
+      lblArg2.setText("...to the value in cell");
+      lblArg3.setText("...and place the answer in");
+      txtCommand.setText("2");
+      txtArg1.setText("");
+      txtArg2.setText("");
+      txtArg3.setText("");
+
+      //enable appropriate text fields only
+      txtArg1.enable();
+      txtArg2.enable();
+      txtArg3.enable();
+      break;
+
+    case COMPARE:
+
+      //set up starting values in output panel
+      lblCommand.setText("if");
+      lblArg1.setText("...the value in cell");
+      lblArg2.setText("...is equal to the value in cell");
+      lblArg3.setText("...then jump to the command in");
+      txtCommand.setText("3");
+      txtArg1.setText("");
+      txtArg2.setText("");
+      txtArg3.setText("");
+
+      //enable appropriate text fields only
+      txtArg1.enable();
+      txtArg2.enable();
+      txtArg3.enable();
+      break;
+      
+    case JUMP:
+
+      //set up starting values in output panel
+      lblCommand.setText("jump");
+      lblArg1.setText("...to the command in cell");
+      lblArg2.setText("");
+      lblArg3.setText("");
+      txtCommand.setText("4");
+      txtArg1.setText("");
+      txtArg2.setText("");
+      txtArg3.setText("");
+
+      //enable appropriate text fields only
+      txtArg1.enable();
+      txtArg2.disable();
+      txtArg3.disable();
+      break;
+      
+    case OUTPUT:
+
+      //set up starting values in output panel
+      lblCommand.setText("output");
+      lblArg1.setText("...the value in cell");
+      lblArg2.setText("");
+      lblArg3.setText("");
+      txtCommand.setText("5");
+      txtArg1.setText("");
+      txtArg2.setText("");
+      txtArg3.setText("");
+
+      //enable appropriate text fields only
+      txtArg1.enable();
+      txtArg2.disable();
+      txtArg3.disable();
+      break;
+      
+    case ASCOUT:
+
+      //set up starting values in output panel
+      lblCommand.setText("output");
+      lblArg1.setText("... ASCII translation of cell");
+      lblArg2.setText("");
+      lblArg3.setText("");
+      txtCommand.setText("6");
+      txtArg1.setText("");
+      txtArg2.setText("");
+      txtArg3.setText("");
+
+      //enable appropriate text fields only
+      txtArg1.enable();
+      txtArg2.disable();
+      txtArg3.disable();
+      break;
+      
+    case HALT:
+
+      //set up starting values in output panel
+      lblCommand.setText("halt");
+      lblArg1.setText("");
+      lblArg2.setText("");
+      lblArg3.setText("");
+      txtCommand.setText("7");
+      txtArg1.setText("");
+      txtArg2.setText("");
+      txtArg3.setText("");
+
+      //enable appropriate text fields only
+      txtArg1.disable();
+      txtArg2.disable();
+      txtArg3.disable();
+      break;
+      
+    }//end switch
+
+  } // end setupInput
+
+  public void update(int command){
+    int temp;
+    
+    
+    switch (command){
+    
+      case CHANGE:
+        //check for legal values
+        if (legal(txtArg1)){ 
+          temp = Integer.valueOf(txtArg1.getText()).intValue(); 
+          memory[counter] = temp;
+          counter++;
+        } else {
+          System.out.println("Illegal values...");
+        } // end if
+
+        break;
+
+      case STORE:
+        //check for legal values
+        if ((legal(txtArg1)) && (legal(txtArg2))){ 
+          memory[counter] = 1;
+          counter++;
+          temp = Integer.valueOf(txtArg1.getText()).intValue(); 
+          memory[counter] = temp;
+          counter++;
+          temp = Integer.valueOf(txtArg2.getText()).intValue(); 
+          memory[counter] = temp;
+          counter++;
+        } else {
+          System.out.println("Illegal values...");
+        } // end if
+              
+        break;
+        
+      case ADD:
+        //check for legal values
+        if ((legal(txtArg1)) && (legal(txtArg2)) && (legal(txtArg3))){ 
+          memory[counter] = 2;
+          counter++;
+          temp = Integer.valueOf(txtArg1.getText()).intValue(); 
+          memory[counter] = temp;
+          counter++;
+          temp = Integer.valueOf(txtArg2.getText()).intValue(); 
+          memory[counter] = temp;
+          counter++;
+          temp = Integer.valueOf(txtArg3.getText()).intValue(); 
+          memory[counter] = temp;
+          counter++;
+        } else {
+          System.out.println("Illegal values...");
+        } // end if
+        break;
+
+      case COMPARE:
+        //check for legal values
+        if ((legal(txtArg1)) && (legal(txtArg2)) && (legal(txtArg3))){ 
+          memory[counter] = 3;
+          counter++;
+          temp = Integer.valueOf(txtArg1.getText()).intValue(); 
+          memory[counter] = temp;
+          counter++;
+          temp = Integer.valueOf(txtArg2.getText()).intValue(); 
+          memory[counter] = temp;
+          counter++;
+          temp = Integer.valueOf(txtArg3.getText()).intValue(); 
+          memory[counter] = temp;
+          counter++;
+        } else {
+          System.out.println("Illegal values...");
+        } // end if
+
+        break;
+
+      case JUMP:
+        //check for legal values
+        if (legal(txtArg1)){ 
+          memory[counter] = 4;
+          counter++;
+          temp = Integer.valueOf(txtArg1.getText()).intValue(); 
+          memory[counter] = temp;
+          counter++;
+        } else {
+          System.out.println("Illegal values...");
+        } // end if
+
+        break;
+
+      case OUTPUT:
+        //check for legal values
+        if (legal(txtArg1)){ 
+          memory[counter] = 5;
+          counter++;
+          temp = Integer.valueOf(txtArg1.getText()).intValue(); 
+          memory[counter] = temp;
+          counter++;
+        } else {
+          System.out.println("Illegal values...");
+        } // end if
+
+        break;
+
+      case ASCOUT:
+        //check for legal values
+        if (legal(txtArg1)){ 
+          memory[counter] = 6;
+          counter++;
+          temp = Integer.valueOf(txtArg1.getText()).intValue(); 
+          memory[counter] = temp;
+          counter++;
+        } else {
+          System.out.println("Illegal values...");
+        } // end if
+
+        break;
+
+      case HALT:
+        memory[counter] = 7;
+        counter++;
+
+        break;
+
+    } // end switch
+    showMem();
+
+    //clean up  input area
+      lblCommand.setText("");
+      lblArg1.setText("");
+      lblArg2.setText("");
+      lblArg3.setText("");
+      txtCommand.setText("");
+      txtArg1.setText("");
+      txtArg2.setText("");
+      txtArg3.setText("");
+      txtCommand.disable();
+      txtArg1.disable();
+      txtArg2.disable();
+      txtArg3.disable();
+
+    //show current cell
+    lstOutput.select(counter);
+
+  } // end update        
+
+  public void showMem(){
+    //looks at the array, and spits out appropriate values in list box
+    String theLine;
+    boolean finished = false;
+    int cell = 0;
+
+    lstOutput.delItems(0,99);
+
+    while(!finished){
+      
+      theLine = String.valueOf(cell);
+      if (cell < 10 ) theLine += " ";
+      theLine += "  |  ";
+      theLine += String.valueOf(memory[cell]);
+      if (memory[cell] < 10 ) theLine += " ";
+      if (memory[cell] < 100 ) theLine += " ";
+      
+      switch (memory[cell]){  
+        case STORE:
+          theLine += "  |  store";
+          lstOutput.addItem(theLine);
+          cell++;                                      
+          
+          // cell n the value n
+          theLine = String.valueOf(cell);
+          if (cell < 10 ) theLine += " ";
+          theLine += "  |  ";
+          theLine += String.valueOf(memory[cell]);
+          if (memory[cell] < 10 ) theLine += " ";
+          if (memory[cell] < 100 ) theLine += " ";
+          theLine += "  |  ...the value ";
+          theLine += String.valueOf(memory[cell]); 
+          lstOutput.addItem(theLine);
+          cell++;                                    
+          
+          // cell n to the cell n
+          theLine = String.valueOf(cell);
+          if (cell < 10 ) theLine += " ";
+          theLine += "  |  ";
+          theLine += String.valueOf(memory[cell]);
+          if (memory[cell] < 10 ) theLine += " ";
+          if (memory[cell] < 100 ) theLine += " ";
+          theLine += "  |  ...to location ";
+          theLine += String.valueOf(memory[cell]); 
+          lstOutput.addItem(theLine);
+          cell++;
+
+          break;
+          
+        case ADD:
+          theLine += "  |  add";
+          lstOutput.addItem(theLine);
+          cell++;
+          
+          // cell n the value in cell n
+          theLine = String.valueOf(cell);
+          if (cell < 10 ) theLine += " ";
+          theLine += "  |  ";
+          theLine += String.valueOf(memory[cell]);
+          if (memory[cell] < 10 ) theLine += " ";
+          if (memory[cell] < 100 ) theLine += " ";
+          theLine += "  |  ...the value in cell ";
+          theLine += String.valueOf(memory[cell]); 
+          lstOutput.addItem(theLine);
+          cell++;                                    
+          
+          // cell n to the valuein cell n
+          theLine = String.valueOf(cell);
+          if (cell < 10 ) theLine += " ";
+          theLine += "  |  ";
+          theLine += String.valueOf(memory[cell]);
+          if (memory[cell] < 10 ) theLine += " ";
+          if (memory[cell] < 100 ) theLine += " ";
+          theLine += "  | ...to the value in cell ";
+          theLine += String.valueOf(memory[cell]); 
+          lstOutput.addItem(theLine);
+          cell++;                                    
+          
+          // cell n and store the result in n
+          theLine = String.valueOf(cell);
+          if (cell < 10 ) theLine += " ";
+          theLine += "  |  ";
+          theLine += String.valueOf(memory[cell]);
+          if (memory[cell] < 10 ) theLine += " ";
+          if (memory[cell] < 100 ) theLine += " ";
+          theLine += "  |  ...and store the result in cell ";
+          theLine += String.valueOf(memory[cell]); 
+          lstOutput.addItem(theLine);
+          cell++;                                    
+
+          break;
+      
+        case COMPARE:
+          theLine += "  |  if";
+          lstOutput.addItem(theLine);
+          cell++;
+          
+          // cell n the value in cell n
+          theLine = String.valueOf(cell);
+          if (cell < 10 ) theLine += " ";
+          theLine += "  |  ";
+          theLine += String.valueOf(memory[cell]);
+          if (memory[cell] < 10 ) theLine += " ";
+          if (memory[cell] < 100 ) theLine += " ";
+          theLine += "  |  ...the value in cell ";
+          theLine += String.valueOf(memory[cell]); 
+          lstOutput.addItem(theLine);
+          cell++;                                    
+          
+          // cell n is equal to the value in cell n
+          theLine = String.valueOf(cell);
+          theLine += "  |  ";
+          theLine += String.valueOf(memory[cell]);
+          if (memory[cell] < 10 ) theLine += " ";
+          if (memory[cell] < 100 ) theLine += " ";
+          theLine += "  |  ...is equal to the value in cell ";
+          theLine += String.valueOf(memory[cell]); 
+          lstOutput.addItem(theLine);
+          cell++;                                    
+          
+          // cell n then jump to the instruction in n
+          theLine = String.valueOf(cell);
+          if (cell < 10 ) theLine += " ";
+          theLine += "  |  ";
+          theLine += String.valueOf(memory[cell]);
+          if (memory[cell] < 10 ) theLine += " ";
+          if (memory[cell] < 100 ) theLine += " ";
+          theLine += "  |  ...then jump to the instruction in ";
+          theLine += String.valueOf(memory[cell]); 
+          lstOutput.addItem(theLine);
+          cell++;                                    
+          break;
+      
+        case JUMP:
+          theLine += "  |  jump";
+          lstOutput.addItem(theLine);
+          cell++;
+          
+          // cell n to the instruction in n
+          theLine = String.valueOf(cell);
+          if (cell < 10 ) theLine += " ";
+          theLine += "  |  ";
+          theLine += String.valueOf(memory[cell]);
+          if (memory[cell] < 10 ) theLine += " ";
+          if (memory[cell] < 100 ) theLine += " ";
+          theLine += "  |  ...to the instruction in cell ";
+          theLine += String.valueOf(memory[cell]); 
+          lstOutput.addItem(theLine);
+          cell++;                                    
+          break;
+      
+        case OUTPUT:
+          theLine += "  |  output";
+          lstOutput.addItem(theLine);
+          cell++;
+          
+          // cell n the value in cell n
+          theLine = String.valueOf(cell);
+          if (cell < 10 ) theLine += " ";
+          theLine += "  |  ";
+          theLine += String.valueOf(memory[cell]);
+          if (memory[cell] < 10 ) theLine += " ";
+          if (memory[cell] < 100 ) theLine += " ";
+          theLine += "  |  ...the value in cell ";
+          theLine += String.valueOf(memory[cell]); 
+          lstOutput.addItem(theLine);
+          cell++;                                    
+          break;
+      
+        case ASCOUT:
+          theLine += "  |  output in ASCII";
+          lstOutput.addItem(theLine);
+          cell++;
+          
+          // cell n the value in cell n
+          theLine = String.valueOf(cell);
+          if (cell < 10 ) theLine += " ";
+          theLine += "  |  ";
+          theLine += String.valueOf(memory[cell]);
+          if (memory[cell] < 10 ) theLine += " ";
+          if (memory[cell] < 100 ) theLine += " ";
+          theLine += "  |  ...the value in cell ";
+          theLine += String.valueOf(memory[cell]); 
+          lstOutput.addItem(theLine);
+          cell++;                                    
+          break;
+      
+        case HALT:
+          theLine += "  |  halt";
+          lstOutput.addItem(theLine);
+          cell++;
+          break;
+
+        default:
+          theLine += "  |";
+          lstOutput.addItem(theLine);
+          cell++;
+          break;
+      
+      } // end switch
+
+      if (cell > 99){
+        finished = true;
+      } // end if
+      
+    } //end while loop
+
+  } // end showMem    
+
+  public boolean legal (TextField input){
+    int theVal;
+    try {
+      theVal = Integer.valueOf(input.getText()).intValue();
+      if ((theVal > -255) && (theVal < 256)){
+        //System.out.println("Legal!!");
+        return true;
+      } else {
+        return false;
+      } // end if
+    } catch (Exception exc) {
+      System.out.println(" Error:  " + exc.toString());
+      return false;
+    } // end try
+  } // end legal
+  
+  public void run(){
+    //this runs in a thread
+    int cell = 0;
+    int arg1;    
+    int arg2;
+    int arg3;
+    boolean finished = false;
+
+    //set up the control panel
+    btnRun.setLabel("Stop");
+    
+
+    //actually runs the code
+    while (!finished){
+      finished = !running;
+      
+      switch (memory[cell]){
+
+        case STORE:
+          cell = incCell(cell);
+          arg1 = memory[cell];
+          cell = incCell(cell);
+          arg2 = memory[cell];
+          memory[arg2] = arg1;
+          cell = incCell(cell);
+          break;
+
+        case ADD:
+          cell = incCell(cell);
+          arg1 = memory[cell];
+          cell = incCell(cell);
+          arg2 = memory[cell];
+          cell = incCell(cell);
+          arg3 = memory[cell];
+          memory[arg3] = memory[arg1] + memory[arg2];
+          cell = incCell(cell);
+          break;
+          
+        case COMPARE:
+          cell = incCell(cell);
+          arg1 = memory[cell];
+          cell = incCell(cell);
+          arg2 = memory[cell];
+          cell = incCell(cell);
+          arg3 = memory[cell];
+          if (memory[arg1] == memory[arg2]){
+            cell = arg3;
+          } else {
+            cell = incCell(cell);
+          } // end if          
+          break;
+        
+        case JUMP:
+          cell = incCell(cell);
+          arg1 = memory[cell];
+          cell = arg1;
+          break;
+          
+        case OUTPUT:
+          cell = incCell(cell);
+          arg1 = memory[cell];
+          //System.out.println(memory[arg1]);
+          txtOutput.appendText("" + memory[arg1] + "\n");
+          cell = incCell(cell);
+          break;
+                                
+        case ASCOUT:
+          cell = incCell(cell);
+          arg1 = memory[cell];
+          //System.out.println((char)memory[arg1]);
+          txtOutput.appendText("" + (char)memory[arg1] + "\n");
+          cell = incCell(cell);
+          break;
+
+        case HALT:
+          cell = incCell(cell);
+          finished = true;
+          break;
+
+
+      } // end switch
+      if (cell >= 99){
+        System.out.println("Runaway program!!!");
+        finished = true;
+        btnRun.setLabel("Run");
+      } // end if
+      
+      //check for finished
+      if (finished){
+        btnRun.setLabel("Run");
+        running = false;
+      } // end if
+
+    } // end while
+    showMem();
+
+  } // end run          
+
+  public void renew(){
+    //cleans up memory
+    for (int i=0; i<=99; i++){
+      memory[i]=0;
+    } // end for
+    counter = 0;
+    showMem();
+    txtOutput.setText("");
+    lstOutput.select(0);
+  } // end renew  
+
+  public void endless(){
+    // demonstrates and endless loop
+    //used for testing loope ender code
+
+    //reset memory
+    renew();
+
+    memory[0] = 1;
+    memory[1] = 0;
+    memory[2] = 50;
+    memory[3] = 1;
+    memory[4] = 1;
+    memory[5] = 51;
+    memory[6] = 2;
+    memory[7] = 50;
+    memory[8] = 51;
+    memory[9] = 50;
+    memory[10] = 5;
+    memory[11] = 50;
+    memory[12] = 4;
+    memory[13] = 6;
+    memory[14] = 7;
+
+    showMem();
+    lstOutput.select(15);
+  } // end endless    
+  
+  public void hiThere(){
+    //says 'Hi there!'
+    
+    renew();
+
+    memory[0] = 1;
+    memory[1] = 72;
+    memory[2] = 50;
+    memory[3] = 1;
+    memory[4] = 105;
+    memory[5] = 51;
+    memory[6] = 1;
+    memory[7] = 32;
+    memory[8] = 52;
+    memory[9] = 1;
+    memory[10] =116 ;
+    memory[11] = 53;
+    memory[12] = 1;
+    memory[13] = 104;
+    memory[14] = 54;
+    memory[15] = 1;
+    memory[16] = 101;
+    memory[17] = 55;
+    memory[18] = 1;
+    memory[19] = 114;
+    memory[20] = 56;
+    memory[21] = 1;
+    memory[22] = 101;
+    memory[23] = 57;
+    memory[24] = 1;
+    memory[25] = 33;
+    memory[26] = 58;
+    memory[27] = 6;
+    memory[28] = 50;
+    memory[29] = 6;
+    memory[30] = 51;
+    memory[31] = 6;
+    memory[32] = 52;
+    memory[33] = 6;
+    memory[34] = 53;
+    memory[35] = 6;
+    memory[36] = 54;
+    memory[37] = 6;
+    memory[38] = 55;
+    memory[39] = 6;
+    memory[40] = 56;
+    memory[41] = 6;
+    memory[42] = 57;
+    memory[43] = 6;
+    memory[44] = 58;
+    memory[45] = 7;
+ 
+    showMem();
+    lstOutput.select(46);
+  } // end hiThere
+
+  public void counter(){
+    //loads a counter into memory
+    
+    renew();
+
+    memory[0] = 1;
+    memory[1] = 0;
+    memory[2] = 50;
+    memory[3] = 1;
+    memory[4] = 1;
+    memory[5] = 51;
+    memory[6] = 1;
+    memory[7] = 10;
+    memory[8] = 52;
+    memory[9] = 2;
+    memory[10] = 50;
+    memory[11] = 51;
+    memory[12] = 50;
+    memory[13] = 5;
+    memory[14] = 50;
+    memory[15] = 3;
+    memory[16] = 50;
+    memory[17] = 52;
+    memory[18] = 30;
+    memory[19] = 4;
+    memory[20] = 9;
+    memory[30] = 7;
+    
+    showMem();
+    lstOutput.select(31);
+  } // end counter
+
+  public void email(){
+    //uses AbMail to send contents of memory to instructor.
+    String listing = new String();
+    int i;    
+
+    //copy output of list box to the string
+    for (i = 0; i<100; i++){
+      listing += lstOutput.getItem(i) + "\n";
+    } // end for
+
+    AbMail mailer = new AbMail(listing);
+    mailer.show();
+    mailer.pack();
+
+  } // end email
+
+  public int incCell(int localCell){
+    localCell++;
+    lstOutput.select(localCell);
+    try{
+      Thread.sleep(runSpeed);
+    } catch (InterruptedException exc){
+      System.out.println("Error");
+    } // end try
+    return localCell;
+  } // end incCell
+
+
+} // end class def
